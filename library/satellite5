@@ -1,0 +1,127 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# $Id: satellite5 731 2017-01-20 13:44:34Z sa_dubielm $
+
+DOCUMENTATION = '''
+---
+module: satellite5
+short_description: Manage Red Hat Satellite 5 using XMLRPC API
+description:
+  - Satellite 5 XMLRPC integration with Ansible
+version_added: "1.0"
+options:
+requirements:
+author: Mateusz Dubiel
+'''
+
+from urlparse import urlparse
+
+import datetime
+import urllib
+import xmlrpclib
+
+try:
+    import json
+except:
+    import simplejson as json
+import os
+
+def uri_validator(x):
+  try:
+    result = urlparse(x)
+    return True if [result.scheme, result.netloc, result.path] else False
+  except:
+    return False
+
+def date_handler (obj):
+  if isinstance(obj, datetime.datetime):
+    return obj.isoformat()
+  elif isinstance(obj, datetime.date):
+    return obj.isoformat()
+  else:
+    return str(obj)
+    
+def main():
+  module = AnsibleModule(
+    argument_spec=dict(
+      endpoint=dict(required=True, type='str'),
+      username=dict(required=True, type='str'),
+      password=dict(required=True, type='str'),
+      method=dict(required=True, type='str', default=None),
+      arguments=dict(required=False, default={}, type='list'),
+      use_session_key=dict(required=False, type='bool', default=True)
+    ),
+    supports_check_mode=False,
+  )
+
+  endpoint = module.params['endpoint']
+  username = module.params['username']
+  password = module.params['password']
+  method = module.params['method']
+  arguments = module.params['arguments']
+  use_session_key = module.params['use_session_key']
+  changed=False
+  #
+  # Try to connect to endpoint
+  # No: Abort
+  #
+  if not uri_validator(endpoint):
+    module.fail_json(msg="Endpoint URL is invalid: %s" % (endpoint) )
+  
+  #
+  # Validating endpoint is returning 200
+  # != 200: Abort
+  #
+  sc = urllib.urlopen(endpoint).getcode()
+  if sc != 200:
+    module.fail_json(msg="Invalid endpoint or wrong status code received: %s, status code: %d" % (endpoint, sc) )
+  
+  #
+  # Verify "method" is a string
+  #
+  if not isinstance(method, basestring):
+    module.fail_json(msg="Argument 'method' is not a valid string: '%s'" % (method) )
+  
+  #
+  # Obtaining sessionKey
+  #
+  client = xmlrpclib.Server(endpoint, verbose=0)
+  try:
+    sessionKey = client.auth.login(username, password)	
+  except xmlrpclib.Fault:
+    module.fail_json(msg="Error logging in %s - check your credentials" % (endpoint) )
+  
+  #
+  # Doing real stuff, executing call in Satellite
+  #
+  if use_session_key:
+    callargs = [ sessionKey ] + arguments
+  else:
+    callargs = arguments
+  
+  try:
+    rpccall = getattr(client, method)
+    # Magic
+    rpcout = json.loads(json.dumps(rpccall(*callargs), default=date_handler))
+    ### Add changed when changed
+    # Assuming that "something" happend on satelite
+    changed=True
+  except xmlrpclib.Fault, e:
+    module.fail_json(msg="Error making rpc call '%s': %s" % (method, str(e) ) )
+ 
+  #
+  # Logout
+  #
+  try:
+    sessionKey = client.auth.logout(sessionKey)	
+  except xmlrpclib.Fault:
+    module.fail_json(msg="Error logging out %s" % (endpoint) )
+      
+  #
+  # All done, return success
+  # 
+  module.exit_json(changed=changed, msg="Call successful.", content=rpcout)
+  
+######################################################################
+from ansible.module_utils.basic import *
+main()
