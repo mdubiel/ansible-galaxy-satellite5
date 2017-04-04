@@ -1,7 +1,7 @@
 Role Name
 =========
 
-A brief description of the role goes here.
+This is an Ansible module (not a role) integrating ansible tasks with Red Hat Satellite 5 / Spacewalk XMLRPC API
 
 Requirements
 ------------
