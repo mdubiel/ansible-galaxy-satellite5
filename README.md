@@ -1,31 +1,71 @@
 Role Name
 =========
 
-This is an Ansible module (not a role) integrating ansible tasks with Red Hat Satellite 5 / Spacewalk XMLRPC API
+This is an Ansible module (not a role) integrating Ansible tasks with Red Hat Satellite 5 / Spacewalk XMLRPC API
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+This module requires those things to work:
+  - Ansible > 2.2
+  - Network access to Red Hat Satellite or Spacewalk RPCXML
+  - User credentials with appropriate privileges in Red Hat Satellite 5
 
-Role Variables
---------------
+Modul supports only Red Hat Satellite 5 not 6!
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+Tested on Red Hat Satellite 5.7
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+python-json
 
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+Available options:
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+ endpoint: URL to /rpc/api of your Satellite 5 instance
+ username: privileged username
+ password: user's password
+ method: name on method listed in Red Hat Satellite 5 documentation [1]
+ arguments: a list of arguments in exact order as decribed in documentation [1]
+ use_session_key: if yes, internal session key will be injected to arguments list
+
+[1] https://access.redhat.com/documentation/en-US/Red_Hat_Satellite/5.7/pdf/API_Guide/Red_Hat_Satellite-5.7-API_Guide-en-US.pdf
+
+Task should be delegated to localhost or any other with network access to Satellite.
+
+Invoke a 'satellite5' task:
+
+Example 1:
+
+list available Errata in Software Channel
+
+- name: "List errata for Software Channel."
+  satellite5:
+    endpoint: "https://satellite.example.com/rpc/api"
+    username: "admin"
+    password: "secret"
+    method: channel.software.listErrata
+    arguments: [ "software_channel_1" ]
+    use_session_key: yes
+  delegate_to: localhost
+
+Example 2:
+
+Merge all Errata from Software Channel A to Software Channel B
+
+- name: "Merge all errata from channel A to B"
+  satellite5:
+    endpoint: "https://satellite.example.com/rpc/api"
+    username: "admin"
+    password: "secret"
+    method: channel.software.mergeErrata
+    arguments: [ "channel_a", "channel_b" ]
+    use_session_key: yes
+  delegate_to: localhost
+
 
 License
 -------
@@ -35,4 +75,4 @@ BSD
 Author Information
 ------------------
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+Mateusz Dubiel, <mdubiel@gmail.com>
